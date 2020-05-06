@@ -23,6 +23,23 @@
 #define IS_PARAM_DOUBLE(pVal) (mxIsNumeric(pVal) && !mxIsLogical(pVal) &&\
 !mxIsEmpty(pVal) && !mxIsSparse(pVal) && !mxIsComplex(pVal) && mxIsDouble(pVal))
 
+// The S-function has following parameters
+// 
+//  server address
+//  server port
+//  sample time/s
+enum {
+    serverAddrIdx = 0,
+    serverPortIdx,
+    sampleTimeIdx,
+    PRMCount
+};
+#define PRM_ServerAddr(S) (std::string(mxArrayToString(ssGetSFcnParam(S, serverAddrIdx))));
+#define PRM_ServerPort(S) ((int)mxGetScalar(ssGetSFcnParam(S, serverPortIdx)));
+#define PRM_SampleTime(S) ((int)mxGetScalar(ssGetSFcnParam(S, sampleTimeIdx)));
+
+
+
 // Function: mdlInitializeSizes ===============================================
 // Abstract:
 //    The sizes information is used by Simulink to determine the S-function
@@ -30,7 +47,7 @@
 static void mdlInitializeSizes(SimStruct *S)
 {
     // No expected parameters
-    ssSetNumSFcnParams(S, 3);
+    ssSetNumSFcnParams(S, PRMCount);
 
     // Parameter mismatch will be reported by Simulink
     if (ssGetNumSFcnParams(S) != ssGetSFcnParamsCount(S)) {
@@ -78,13 +95,8 @@ static void mdlInitializeSampleTimes(SimStruct *S)
 //   to do it.
 #define MDL_START
 static void mdlStart(SimStruct *S)
-{
-    // Store new C++ object in the pointers vector
-    // DoubleAdder *da  = new DoubleAdder();
-    // ssGetPWork(S)[0] = da;
-    
+{   
     int iResult;
-    
     // winsock initialize
     WSADATA wsadata;
     iResult = WSAStartup(MAKEWORD(2, 2), &wsadata);
@@ -105,34 +117,59 @@ static void mdlStart(SimStruct *S)
     struct addrinfo *result = NULL,
                     *ptr = NULL,
                     hints;
-    ZeroMemory( &hints, sizeof(hints) );
+    ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
     // Resolve the server address and port
-    std::string serverAddr = std::string(mxArrayToString(ssGetSFcnParam(S,0)));
-    ssPrintf("server address: %s\n", serverAddr);
-    
-    *pSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    
-    SOCKADDR_IN server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
-    server_addr.sin_port = htons(55002);
-    
-    if (connect(*pSock, (SOCKADDR *)&server_addr, sizeof(SOCKADDR)) == SOCKET_ERROR) {
-		ssPrintf("server %s:%d connect failed!!\n", "127.0.0.1", 55002);
-		WSACleanup();
-	}
-	else {
-		ssPrintf("server %s:%d connect success.\n", "127.0.0.1", 55002);
-	}
+    std::string serverAddr = PRM_ServerAddr(S);
+    int serverPort = PRM_ServerPort(S);
+    ssPrintf("get remote server info: %s:%d\n", serverAddr.c_str(), serverPort);
+    // getaddrinfo
+    char charPort[5];
+    sprintf(charPort, "%d", serverPort);
+    iResult = getaddrinfo(serverAddr.c_str(), charPort, &hints, &result);
+    if (iResult != 0) {
+        ssPrintf("getaddrinfo failed: %d\n", iResult);
+        WSACleanup();
+        return;
+    }
+    // create a SOCKET for connecting to server
+    ptr = result;
+    *pSock = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+    if (*pSock == INVALID_SOCKET) {
+        ssPrintf("Error at socket(): %ld\n", WSAGetLastError());
+        freeaddrinfo(result);
+        WSACleanup();
+        return;
+    }
+    // Set TimeOut
+    int recvTimeout = 1 * 1000;  //30s
+    int sendTimeout = 1 * 1000;  //30s
+
+    setsockopt(*pSock, SOL_SOCKET, SO_RCVTIMEO, (char *)&recvTimeout, sizeof(int));
+    setsockopt(*pSock, SOL_SOCKET, SO_SNDTIMEO, (char *)&sendTimeout, sizeof(int));
+
+    // connect to server.
+    iResult = connect(*pSock, ptr->ai_addr, (int)ptr->ai_addrlen);
+    if (iResult == SOCKET_ERROR) {
+        closesocket(*pSock);
+        *pSock = INVALID_SOCKET;
+    }
+    freeaddrinfo(result);
+    if (*pSock == INVALID_SOCKET) {
+        ssPrintf("Unable to connect to server!\n");
+        WSACleanup();
+        return;
+    }
+    /*
+    // test Send and Receive
     char send_buf[100] = {0};
-    std::string s = "Im ur father";
-    sprintf(send_buf, "%s", s.c_str());
+    std::string s = "hello server";
+    sprintf(send_buf, "%s hhh", s.c_str());
     int send_len = send(*pSock, send_buf, 100, 0);
     if (send_len < 0) {
-        ssPrintf("send message %s failed£¡\n", s);
+        ssPrintf("send message %s failedï¼\n", s);
     }
     char recv_buf[256];
     iResult = recv(*pSock, recv_buf, 256, 0);
@@ -142,7 +179,7 @@ static void mdlStart(SimStruct *S)
         ssPrintf("Connection closed\n");
     else
         ssPrintf("Receive failed: %d\n", WSAGetLastError());
-
+    */
 }
 
 // Function: mdlOutputs =======================================================
@@ -151,15 +188,64 @@ static void mdlStart(SimStruct *S)
 //   block.
 static void mdlOutputs(SimStruct *S, int_T tid)
 {
-    // Retrieve C++ object from the pointers vector
-    DoubleAdder *da = static_cast<DoubleAdder *>(ssGetPWork(S)[0]);
-    
+    // Retrieve TCP Socket from the work pointers vector
+    SOCKET *pSock = static_cast<SOCKET *>(ssGetPWork(S)[0]);
+/* 
     // Get data addresses of I/O
-    InputRealPtrsType  u = ssGetInputPortRealSignalPtrs(S,0);
-               real_T *y = ssGetOutputPortRealSignal(S, 0);
+//     InputRealPtrsType  u = ssGetInputPortRealSignalPtrs(S,0);
+//                real_T *y = ssGetOutputPortRealSignal(S, 0);
 
     // Call AddTo method and return peak value
     y[0] = da->AddTo(*u[0]);
+*/
+    int iResult;
+    char send_buf[5] = {'a', 'b', 'c', 'd', 'e'};
+    int send_len = send(*pSock, send_buf, 5, 0);
+    if (send_len < 0) {
+        ssPrintf("send message %s failedï¼\n", send_buf);
+    }
+    
+    struct cube {
+        short length;
+        short width;
+        short height;
+    } c;
+    struct dirAndSpeed {
+        int dir;
+        int speed;
+    } ds;
+    
+    ssPrintf("size cube: %d, dirAndSpeed: %d\n", sizeof(cube), sizeof(dirAndSpeed));
+    
+    ssPrintf("mdlOutputs: Simulate now begin recv\n");
+    char chartag[1];
+    char charlen[1];
+    struct cube cube_buf;
+    struct dirAndSpeed ds_buf;
+    
+    iResult = recv(*pSock, chartag, 1, 0);
+    int tag =  (int)chartag[0];
+    ssPrintf("mdlOutputs: Simulate recv tag: %d\n", tag);
+    iResult = recv(*pSock, charlen, 1, 0);
+    int len = (int)charlen[0];
+    ssPrintf("mdlOutputs: Simulate recv len: %d\n", len);
+    switch (tag) {
+        case 1:
+            ssPrintf("switch tag 1\n");
+            memset((char*)&cube_buf, 0, sizeof(cube));
+            iResult = recv(*pSock, (char*)&cube_buf, sizeof(cube), 0);
+            assert(len == sizeof(cube))
+            ssPrintf("cube received, len:%d, width:%d, height:%d\n", cube_buf.length, cube_buf.width, cube_buf.height);
+            break;
+        case 2:
+            ssPrintf("switch tag 2\n");
+            memset((char*)&ds_buf, 0, sizeof(dirAndSpeed));
+            iResult = recv(*pSock, (char*)&ds_buf, sizeof(dirAndSpeed), 0);
+            ssPrintf("dirAndSpeed received, dir:%d, speed:%d\n", ds_buf.dir, ds_buf.speed);
+            break;
+        default:
+            ssPrintf("unknown tag");
+    }
 }
 
 #ifdef MATLAB_MEX_FILE
@@ -171,9 +257,10 @@ static void mdlOutputs(SimStruct *S, int_T tid)
  *    Save the operating point of this block and return it to Simulink 
  */
 static mxArray* mdlGetOperatingPoint(SimStruct* S)
-{
-    DoubleAdder *da = static_cast<DoubleAdder*>(ssGetPWork(S)[0]);
-    return mxCreateDoubleScalar(da->GetPeak());
+{  
+//     DoubleAdder *da = static_cast<DoubleAdder*>(ssGetPWork(S)[0]);
+//     return mxCreateDoubleScalar(da->GetPeak());
+    return NULL;
 }
 /* Function: mdlSetOperatingPoint =================================================
  * Abstract:
@@ -183,8 +270,8 @@ static mxArray* mdlGetOperatingPoint(SimStruct* S)
 static void mdlSetOperatingPoint(SimStruct* S, const mxArray* ma)
 {
     // Retrieve C++ object from the pointers vector
-    DoubleAdder *da = static_cast<DoubleAdder*>(ssGetPWork(S)[0]);
-    da->SetPeak(mxGetPr(ma)[0]);
+//     DoubleAdder *da = static_cast<DoubleAdder*>(ssGetPWork(S)[0]);
+//     da->SetPeak(mxGetPr(ma)[0]);
 }
 #endif // MATLAB_MEX_FILE
 
@@ -196,8 +283,14 @@ static void mdlSetOperatingPoint(SimStruct* S, const mxArray* ma)
 static void mdlTerminate(SimStruct *S)
 {
     // Retrieve and destroy C++ object
-    DoubleAdder *da = static_cast<DoubleAdder *>(ssGetPWork(S)[0]);
-    delete da;
+    SOCKET *pSock = static_cast<SOCKET *>(ssGetPWork(S)[0]);
+    const char *simStop = "Simulate Terminated";
+    int iResult = send(*pSock, simStop, (int)strlen(simStop), 0);
+    if (iResult == SOCKET_ERROR) {
+        ssPrintf("mdlTerminate, send fail: %d\n", WSAGetLastError());
+    }
+    WSACleanup();
+    delete pSock;
 }
 
 
