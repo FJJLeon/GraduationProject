@@ -1,0 +1,3 @@
+matfile = load("testimg523.mat");
+
+disp(size(matfile.panor.));

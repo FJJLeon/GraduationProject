@@ -153,7 +153,11 @@ public class ImageTransmitServer : MonoBehaviour
         finally
         {
             // stop listening
-            myClient.Close();
+            if (myClient != null && myClient.Connected)
+            {
+                myClient.Close();
+            }
+            
             imageServer.Stop();
         }
     }
