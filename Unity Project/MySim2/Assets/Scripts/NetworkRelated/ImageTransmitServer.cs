@@ -13,8 +13,17 @@ public class ImageTransmitServer : MonoBehaviour
     [Header("Transmition Config")]
     public String ServerHost = "127.0.0.1";
 
-    public String ImageType = "RGB";
-    public int ServerPort = 58001;
+    public enum ImageTypeEnum
+    {
+        RGB = 0,
+        Depth,
+        Panoramic
+    }
+    private String[] ImageTypeString = {"RGB", "Depth", "Panoramic" };
+
+    public ImageTypeEnum ImageType = ImageTypeEnum.RGB;
+
+    public int ServerPort = 0;
 
     [Header("Image Config")]
     public Texture Image;
@@ -42,16 +51,17 @@ public class ImageTransmitServer : MonoBehaviour
     void Start()
     {
         Assert.IsNotNull(Image);
-        if (ImageType != "RGB" && ImageType != "Depth" && ImageType != "Panoramic")
+        if (ImageType != ImageTypeEnum.RGB && ImageType != ImageTypeEnum.Depth && ImageType != ImageTypeEnum.Panoramic)
         {
             Debug.Log("ImageType Mismatch");
             Assert.IsTrue(false);
         }
         if (Image.width != ResolutionWidth || Image.height != ResolutionHeight)
         {
-            Debug.Log(ImageType + "-Server Texture size mismatch");
+            Debug.Log(ImageTypeString[(int)ImageType] + "-Server Texture size mismatch");
             Assert.IsTrue(false);
         }
+        Assert.IsTrue(ServerPort != 0);
         // mark bytedIMG as not consumed
         consumed = true;
 
@@ -64,7 +74,7 @@ public class ImageTransmitServer : MonoBehaviour
         if (consumed)
         {
             image2D = TextureToTexture2D(Image);
-
+            
             bytedIMG = image2D.GetRawTextureData();
             Assert.AreEqual(bytedIMG.Length, ResolutionWidth * ResolutionHeight * 3);
             // mark as consumed
@@ -107,7 +117,7 @@ public class ImageTransmitServer : MonoBehaviour
             // Enter listening loop
             while (true)
             {
-                Debug.Log(ImageType + "-Server Waiting for a connection... ");
+                Debug.Log(ImageTypeString[(int)ImageType] + "-Server Waiting for a connection... ");
 
                 // Perform a blocking call to accept requests.
                 // could also use server.AcceptSocket()
@@ -115,17 +125,17 @@ public class ImageTransmitServer : MonoBehaviour
 
                 if (myClient != null)
                 {
-                    Debug.Log(ImageType + "-Server Connected with a client!");
+                    Debug.Log(ImageTypeString[(int)ImageType] + "-Server Connected with a client!");
                 }
 
                 clientStream = myClient.GetStream();
                 clientWriter = new StreamWriter(clientStream);
 
                 
-                while (true)
+                while (myClient.Connected)
                 {
                     clientStream.Write(bytedIMG, 0, bytedIMG.Length);
-                    Debug.Log("image frame send, length: " + bytedIMG.Length);
+                    Debug.Log(ImageTypeString[(int)ImageType] + "-Server send image ok, length: " + bytedIMG.Length);
                     // mark as consumed
                     consumed = true;
 
