@@ -3,7 +3,8 @@ datasize = size(matfile.panor.Data);
 disp(datasize);
 
 count = datasize(4);
+count
 for i = 1:count
     imshow(matfile.panor.Data(:,:,:,i));
-    pause(0.5);
+    % pause(0.5);
 end
