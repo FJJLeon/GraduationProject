@@ -10,7 +10,7 @@ public class ImageTransmitServer : MonoBehaviour
 {
     public bool Enable = true;
 
-    [Header("Transmition Config")]
+    [Header("Image Transmition Config")]
     public String ServerHost = "127.0.0.1";
 
     public enum ImageTypeEnum
@@ -36,6 +36,7 @@ public class ImageTransmitServer : MonoBehaviour
 
     [HideInInspector]
     TcpListener imageServer = null;
+    Thread serverThread;
     TcpClient myClient = null;
     NetworkStream clientStream;
     StreamWriter clientWriter;
@@ -65,7 +66,8 @@ public class ImageTransmitServer : MonoBehaviour
         // mark bytedIMG as not consumed
         consumed = true;
 
-        new Thread(ImageServerThread).Start();
+        serverThread = new Thread(ImageServerThread);
+        serverThread.Start();
     }
 
     // Update is called once per frame
@@ -135,7 +137,7 @@ public class ImageTransmitServer : MonoBehaviour
                 while (myClient.Connected)
                 {
                     clientStream.Write(bytedIMG, 0, bytedIMG.Length);
-                    Debug.Log(ImageTypeString[(int)ImageType] + "-Server send image ok, length: " + bytedIMG.Length);
+                    // Debug.Log(ImageTypeString[(int)ImageType] + "-Server send image ok, length: " + bytedIMG.Length);
                     // mark as consumed
                     consumed = true;
 
@@ -168,5 +170,6 @@ public class ImageTransmitServer : MonoBehaviour
         {// close TCP connection
             myClient.Close();
         }
+        serverThread.Abort();
     }
 }
