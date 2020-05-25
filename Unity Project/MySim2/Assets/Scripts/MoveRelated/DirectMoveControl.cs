@@ -4,8 +4,8 @@ using UnityEngine;
 
 public class DirectMoveControl : MonoBehaviour
 {
-    public float moveSpeed = 10f;
-    public float rotateSpeed = 80f;
+    public float moveSpeed = 5f;
+    public float rotateSpeed = 50f;
 
     float moveHorizonal;
     float moveVertical;

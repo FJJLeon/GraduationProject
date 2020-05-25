@@ -55,12 +55,14 @@ static void mdlInitializeSizes(SimStruct *S)
     }
 
     // Specify I/O
-    if (!ssSetNumInputPorts(S, 2)) return;
-    ssSetInputPortWidth(S, 0, DYNAMICALLY_SIZED);
+    if (!ssSetNumInputPorts(S, 1)) return;
+    // ssSetInputPortWidth(S, 0, DYNAMICALLY_SIZED);
+    ssSetInputPortWidth(S, 0, 2);
     ssSetInputPortDirectFeedThrough(S, 0, 1);
     if (!ssSetNumOutputPorts(S,1)) return;
-    ssSetOutputPortWidth(S, 0, DYNAMICALLY_SIZED);
-
+    // ssSetOutputPortWidth(S, 0, DYNAMICALLY_SIZED);
+    ssSetOutputPortWidth(S, 0, 7);
+    
     ssSetNumSampleTimes(S, 1);
 
     // Reserve place for C++ object
@@ -162,7 +164,7 @@ static void mdlStart(SimStruct *S)
         WSACleanup();
         return;
     }
-    
+    /*
     // once connect, receive init posture info
     struct MyPosture initPosture;
     int size = sizeof(MyPosture);
@@ -177,6 +179,7 @@ static void mdlStart(SimStruct *S)
         ssPrintf("Connection closed\n");
     else
         ssPrintf("Receive failed: %d\n", WSAGetLastError());
+    */
 }
 
 // Function: mdlOutputs =======================================================
@@ -187,14 +190,50 @@ static void mdlOutputs(SimStruct *S, int_T tid)
 {
     // Retrieve TCP Socket from the work pointers vector
     SOCKET *pSock = static_cast<SOCKET *>(ssGetPWork(S)[0]);
-/* 
+ 
     // Get data addresses of I/O
-//     InputRealPtrsType  u = ssGetInputPortRealSignalPtrs(S,0);
-//                real_T *y = ssGetOutputPortRealSignal(S, 0);
-
+    InputRealPtrsType  u = ssGetInputPortRealSignalPtrs(S,0);
+               real_T *y = ssGetOutputPortRealSignal(S, 0);
     // Call AddTo method and return peak value
-    y[0] = da->AddTo(*u[0]);
-*/
+    // y[0] = da->AddTo(*u[0]);
+               
+    /* recv posture */
+    struct MyPosture myPosture;
+    int size = sizeof(MyPosture);
+    
+    memset((char*)&myPosture, 0, size);
+    int recvResult = recv(*pSock, (char*)&myPosture, size, 0);
+    if (recvResult > 0) {
+        ssPrintf("bytes received: %d, positon x=%f, y=%f, z=%f\n",
+                recvResult, myPosture.myPosition.x, myPosture.myPosition.y, myPosture.myPosition.z);
+    }
+    else if (recvResult == 0)
+        ssPrintf("Connection closed\n");
+    else
+        ssPrintf("Receive failed: %d\n", WSAGetLastError());
+    
+    y[0] = myPosture.myPosition.x;
+    y[1] = myPosture.myPosition.y;
+    y[2] = myPosture.myPosition.z;
+    y[3] = myPosture.myQuaternion.x;
+    y[4] = myPosture.myQuaternion.y;
+    y[5] = myPosture.myQuaternion.z;
+    y[6] = myPosture.myQuaternion.w;
+    
+    /* send move cmd */
+    ssPrintf("%f, %f\n", *u[0], *u[1]);
+    struct Command move;
+    move.type = CMDTYPE_MOVE;
+    move.len = sizeof(MoveCMD);
+    move.movecmd.vertical = *u[0];
+    move.movecmd.horizonal = *u[1];
+    
+    int send_len = send(*pSock, (char*)&move, sizeof(Command), 0);
+    if (send_len < 0) {
+        ssPrintf("send message %s failed£¡\n", (char*)&move);
+    }
+        
+    
     // loop for data switch
 //     int iResult;
 //     char send_buf[5] = {'a', 'b', 'c', 'd', 'e'};

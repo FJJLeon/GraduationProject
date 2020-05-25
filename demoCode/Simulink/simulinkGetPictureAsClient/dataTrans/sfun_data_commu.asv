@@ -56,11 +56,13 @@ static void mdlInitializeSizes(SimStruct *S)
 
     // Specify I/O
     if (!ssSetNumInputPorts(S, 1)) return;
-    ssSetInputPortWidth(S, 0, DYNAMICALLY_SIZED);
+    // ssSetInputPortWidth(S, 0, DYNAMICALLY_SIZED);
+    ssSetInputPortWidth(S, 0, 2);
     ssSetInputPortDirectFeedThrough(S, 0, 1);
     if (!ssSetNumOutputPorts(S,1)) return;
-    ssSetOutputPortWidth(S, 0, DYNAMICALLY_SIZED);
-
+    // ssSetOutputPortWidth(S, 0, DYNAMICALLY_SIZED);
+    ssSetOutputPortWidth(S, 0, 7);
+    
     ssSetNumSampleTimes(S, 1);
 
     // Reserve place for C++ object
@@ -162,28 +164,17 @@ static void mdlStart(SimStruct *S)
         WSACleanup();
         return;
     }
-    
+    /*
     // once connect, receive init posture info
     struct MyPosture initPosture;
-    ssPrintf("posture size = %d\n", sizeof(My))
-    memset((char*)&initPosture, 0, sizeof(MyPosture));
-    iResult = recv(*pSock, (char*)&initPosture, sizeof(MyPosture), 0);
-    if (iReuslt > 0)
-        ssPrintf("bytes received: %d, positon x=%d, y=%d, z=%d",
-                iResult, initPosture.)
-    /*
-    // test Send and Receive
-    char send_buf[100] = {0};
-    std::string s = "hello server";
-    sprintf(send_buf, "%s hhh", s.c_str());
-    int send_len = send(*pSock, send_buf, 100, 0);
-    if (send_len < 0) {
-        ssPrintf("send message %s failed£¡\n", s);
+    int size = sizeof(MyPosture);
+    
+    memset((char*)&initPosture, 0, size);
+    iResult = recv(*pSock, (char*)&initPosture, size, 0);
+    if (iResult > 0) {
+        ssPrintf("bytes received: %d, positon x=%f, y=%f, z=%f\n",
+                iResult, initPosture.myPosition.x, initPosture.myPosition.y, initPosture.myPosition.z);
     }
-    char recv_buf[256];
-    iResult = recv(*pSock, recv_buf, 256, 0);
-    if (iResult > 0)
-        ssPrintf("bytes received: %d, message: %s\n", iResult, recv_buf);
     else if (iResult == 0)
         ssPrintf("Connection closed\n");
     else
@@ -199,63 +190,90 @@ static void mdlOutputs(SimStruct *S, int_T tid)
 {
     // Retrieve TCP Socket from the work pointers vector
     SOCKET *pSock = static_cast<SOCKET *>(ssGetPWork(S)[0]);
-/* 
+ 
     // Get data addresses of I/O
-//     InputRealPtrsType  u = ssGetInputPortRealSignalPtrs(S,0);
-//                real_T *y = ssGetOutputPortRealSignal(S, 0);
-
+    InputRealPtrsType  u = ssGetInputPortRealSignalPtrs(S,0);
+               real_T *y = ssGetOutputPortRealSignal(S, 0);
     // Call AddTo method and return peak value
-    y[0] = da->AddTo(*u[0]);
-*/
-    // loop for data switch
-    int iResult;
-    char send_buf[5] = {'a', 'b', 'c', 'd', 'e'};
-    int send_len = send(*pSock, send_buf, 5, 0);
+    // y[0] = da->AddTo(*u[0]);
+               
+    /* recv posture */
+    struct MyPosture initPosture;
+    int size = sizeof(MyPosture);
+    
+    memset((char*)&initPosture, 0, size);
+    iResult = recv(*pSock, (char*)&initPosture, size, 0);
+    if (iResult > 0) {
+        ssPrintf("bytes received: %d, positon x=%f, y=%f, z=%f\n",
+                iResult, initPosture.myPosition.x, initPosture.myPosition.y, initPosture.myPosition.z);
+    }
+    else if (iResult == 0)
+        ssPrintf("Connection closed\n");
+    else
+        ssPrintf("Receive failed: %d\n", WSAGetLastError());
+    
+    /* send move cmd */
+    ssPrintf("%f, %f\n", *u[0], *u[1]);
+    struct Command move;
+    move.type = CMDTYPE_MOVE;
+    move.len = sizeof(MoveCMD);
+    move.movecmd.vertical = *u[0];
+    move.movecmd.horizonal = *u[1];
+    
+    int send_len = send(*pSock, (char*)&move, sizeof(Command), 0);
     if (send_len < 0) {
-        ssPrintf("send message %s failed£¡\n", send_buf);
-    }
+        
+        
     
-    struct cube {
-        int length;
-        int width;
-        double height;
-    } c;
-    struct dirAndSpeed {
-        int dir;
-        int speed;
-    } ds;
-    
-    ssPrintf("size cube: %d, dirAndSpeed: %d\n", sizeof(cube), sizeof(dirAndSpeed));
-    
-    ssPrintf("mdlOutputs: Simulate now begin recv\n");
-    char chartag;
-    char charlen;
-    struct cube cube_buf;
-    struct dirAndSpeed ds_buf;
-    
-    iResult = recv(*pSock, (char*)&chartag, 1, 0);
-    int tag =  (int)chartag;
-    ssPrintf("mdlOutputs: Simulate recv tag: %d\n", tag);
-    iResult = recv(*pSock, (char*)&charlen, 1, 0);
-    int len = (int)charlen;
-    ssPrintf("mdlOutputs: Simulate recv len: %d\n", len);
-    switch (tag) {
-        case 1:
-            ssPrintf("switch tag 1\n");
-            memset((char*)&cube_buf, 0, sizeof(cube));
-            iResult = recv(*pSock, (char*)&cube_buf, sizeof(cube), 0);
-            //assert(len == sizeof(cube))
-            ssPrintf("cube received, len:%d, width:%d, height:%f\n", cube_buf.length, cube_buf.width, cube_buf.height);
-            break;
-        case 2:
-            ssPrintf("switch tag 2\n");
-            memset((char*)&ds_buf, 0, sizeof(dirAndSpeed));
-            iResult = recv(*pSock, (char*)&ds_buf, sizeof(dirAndSpeed), 0);
-            ssPrintf("dirAndSpeed received, dir:%d, speed:%d\n", ds_buf.dir, ds_buf.speed);
-            break;
-        default:
-            ssPrintf("unknown tag");
-    }
+    // loop for data switch
+//     int iResult;
+//     char send_buf[5] = {'a', 'b', 'c', 'd', 'e'};
+//     int send_len = send(*pSock, send_buf, 5, 0);
+//     if (send_len < 0) {
+//         ssPrintf("send message %s failed£¡\n", send_buf);
+//     }
+//     
+//     struct cube {
+//         int length;
+//         int width;
+//         double height;
+//     } c;
+//     struct dirAndSpeed {
+//         int dir;
+//         int speed;
+//     } ds;
+//     
+//     ssPrintf("size cube: %d, dirAndSpeed: %d\n", sizeof(cube), sizeof(dirAndSpeed));
+//     
+//     ssPrintf("mdlOutputs: Simulate now begin recv\n");
+//     char chartag;
+//     char charlen;
+//     struct cube cube_buf;
+//     struct dirAndSpeed ds_buf;
+//     
+//     iResult = recv(*pSock, (char*)&chartag, 1, 0);
+//     int tag =  (int)chartag;
+//     ssPrintf("mdlOutputs: Simulate recv tag: %d\n", tag);
+//     iResult = recv(*pSock, (char*)&charlen, 1, 0);
+//     int len = (int)charlen;
+//     ssPrintf("mdlOutputs: Simulate recv len: %d\n", len);
+//     switch (tag) {
+//         case 1:
+//             ssPrintf("switch tag 1\n");
+//             memset((char*)&cube_buf, 0, sizeof(cube));
+//             iResult = recv(*pSock, (char*)&cube_buf, sizeof(cube), 0);
+//             //assert(len == sizeof(cube))
+//             ssPrintf("cube received, len:%d, width:%d, height:%f\n", cube_buf.length, cube_buf.width, cube_buf.height);
+//             break;
+//         case 2:
+//             ssPrintf("switch tag 2\n");
+//             memset((char*)&ds_buf, 0, sizeof(dirAndSpeed));
+//             iResult = recv(*pSock, (char*)&ds_buf, sizeof(dirAndSpeed), 0);
+//             ssPrintf("dirAndSpeed received, dir:%d, speed:%d\n", ds_buf.dir, ds_buf.speed);
+//             break;
+//         default:
+//             ssPrintf("unknown tag");
+//     }
 }
 
 #ifdef MATLAB_MEX_FILE

@@ -15,12 +15,31 @@ struct MyPosture
     MyPosition myPosition;
     struct MyQuaternion
     {
-         float x;
+        float x;
         float y;
         float z;
         float w;
     };
     MyQuaternion myQuaternion;
+};
+
+// Define a struct for command
+enum CMDTYPE 
+{
+    CMDTYPE_MOVE = 5000,
+    TYPE
+};
+
+struct MoveCMD
+{
+    float vertical;
+    float horizonal;
+};
+struct Command 
+{
+    CMDTYPE type;
+    int len;
+    MoveCMD movecmd;
 };
 
 #endif

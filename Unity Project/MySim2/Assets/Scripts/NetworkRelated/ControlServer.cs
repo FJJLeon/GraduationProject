@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Unity.UIWidgets.foundation;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Experimental.UIElements;
@@ -36,7 +37,12 @@ public class ControlServer : MonoBehaviour
 
     [Header("Control Target")]
     public GameObject Target;
+    public float moveSpeed = 5f;
+    public float rotateSpeed = 50f;
+    float moveVertical;
+    float moveHorizonal;
 
+    private float moveInterval = 0;
     // no sample time, this is a mutual server, need send and recv
 
     [HideInInspector]
@@ -48,9 +54,14 @@ public class ControlServer : MonoBehaviour
     MyPosture targetPosture;
     byte[] postureBytes;
 
+    Queue<Command> recvCmdQueue = new Queue<Command>();
+
     // Start is called before the first frame update
     void Start()
     {
+        moveVertical = 0;
+        moveHorizonal = 0;
+
         Assert.IsTrue(ServerPort != 0);
         if (Target == null)
         {
@@ -61,18 +72,50 @@ public class ControlServer : MonoBehaviour
         serverThread = new Thread(DataThread);
         serverThread.Start();
 
-        targetPosture = TransformToPosture(Target.GetComponent<Transform>());
-
-        postureBytes = MarshalPosture(targetPosture);
-        Debug.Log("posture bytes size:" + postureBytes.Length+ "Data:" + BitConverter.ToString(postureBytes));
+        // targetPosture = TransformToPosture(Target.GetComponent<Transform>());
+        // postureBytes = MarshalPosture(targetPosture);
+        // Debug.Log("posture bytes size:" + postureBytes.Length+ "Data:" + BitConverter.ToString(postureBytes));
     }
 
     // Update is called once per frame
     void Update()
     {
+        targetPosture = TransformToPosture(Target.GetComponent<Transform>());
+        postureBytes = MarshalPosture(targetPosture);
+
+        if (!recvCmdQueue.isEmpty())
+        {
+            Command cmd = recvCmdQueue.Dequeue();
+            moveVertical = cmd.cmdMove.vertical;
+            moveHorizonal = cmd.cmdMove.horizonal;
+        }
+
+        moveInterval += Time.deltaTime;
+        if (moveInterval > 0.05)// move per 0.1s 
+        {
+            moveInterval = 0;
+            Target.transform.Translate(Vector3.forward * moveVertical * Time.deltaTime * moveSpeed);
+            Target.transform.Rotate(Vector3.up * moveHorizonal * Time.deltaTime * rotateSpeed);
+        }
         
     }
 
+
+    private enum CmdTypeEnum
+    {
+        CMDTYPE_MOVE = 5000
+    }
+    public struct CmdBodyMove
+    {
+        public float vertical;
+        public float horizonal;
+    }
+    public struct Command
+    {
+        public int type;
+        public int length;
+        public CmdBodyMove cmdMove;
+    };
 
     void DataThread()
     {
@@ -84,6 +127,7 @@ public class ControlServer : MonoBehaviour
             // Start listening for client requests
             controlServer.Start();
 
+            int readlen;
             while (true)
             {
                 Debug.Log("Control-Server Waiting for a connection... ");
@@ -99,7 +143,45 @@ public class ControlServer : MonoBehaviour
 
                 clientStream = myClient.GetStream();
 
-                clientStream.Write(postureBytes, 0, postureBytes.Length);
+                while (myClient.Connected)
+                {
+                    /* send posture */
+                    
+                    clientStream.Write(postureBytes, 0, postureBytes.Length);
+                    Debug.Log("posture bytes size:" + postureBytes.Length + "Data:" + BitConverter.ToString(postureBytes));
+
+                    /* recv command */
+                    byte[] intByte = new byte[sizeof(int)];
+                    Command cmd = new Command();
+                    // read tag
+                    readlen = clientStream.Read(intByte, 0, sizeof(int));
+                    Assert.AreEqual(readlen, sizeof(int));
+                    cmd.type = BitConverter.ToInt32(intByte, 0);
+                    Debug.Log("read type len: " + readlen + " type: " + cmd.type);
+                    // read length
+                    readlen = clientStream.Read(intByte, 0, sizeof(int));
+                    Assert.AreEqual(readlen, sizeof(int));
+                    cmd.length = BitConverter.ToInt32(intByte, 0);
+                    Debug.Log("read length len: " + readlen + " length: " + cmd.length);
+                    // switch read body
+                    switch (cmd.type)
+                    {
+                        case (int)CmdTypeEnum.CMDTYPE_MOVE:
+                            int size = Marshal.SizeOf(cmd.cmdMove);
+                            byte[] moveBytes = new byte[size];
+
+                            readlen = clientStream.Read(moveBytes, 0, size);
+                            Assert.AreEqual(readlen, size);
+                            cmd.cmdMove = UnmarshalCmdBodyMove(moveBytes);
+
+                            Debug.Log("cmd type" + cmd.type + "length:" + cmd.length + "body: " + cmd.cmdMove.vertical + " " + cmd.cmdMove.horizonal);
+
+                            recvCmdQueue.Enqueue(cmd);
+                            break;
+                        default:
+                            break;
+                    }
+                }
 
                 myClient.Close();
 
@@ -156,7 +238,7 @@ public class ControlServer : MonoBehaviour
 
         return bytes;
     }
-    private MyPosture fromBytes(byte[] arr)
+    private MyPosture UnmarshalPosture(byte[] arr)
     {
         MyPosture p = new MyPosture();
 
@@ -166,6 +248,21 @@ public class ControlServer : MonoBehaviour
         Marshal.Copy(arr, 0, ptr, size);
 
         p = (MyPosture)Marshal.PtrToStructure(ptr, p.GetType());
+        Marshal.FreeHGlobal(ptr);
+
+        return p;
+    }
+
+    private CmdBodyMove UnmarshalCmdBodyMove(byte[] arr)
+    {
+        CmdBodyMove p = new CmdBodyMove();
+
+        int size = Marshal.SizeOf(p);
+        IntPtr ptr = Marshal.AllocHGlobal(size);
+
+        Marshal.Copy(arr, 0, ptr, size);
+
+        p = (CmdBodyMove)Marshal.PtrToStructure(ptr, p.GetType());
         Marshal.FreeHGlobal(ptr);
 
         return p;
