@@ -17,7 +17,7 @@ public class MiniMapCamFollowCar : MonoBehaviour
     }
 
     // Update is called once per frame
-    void Update()
+    void LateUpdate()
     {
         // Debug.Log("car change to x:" + followedCar.transform.position.x + ", z: " + followedCar.transform.position.z);
         this.gameObject.GetComponent<Transform>().position = new Vector3(followedCar.transform.position.x, 0, followedCar.transform.position.z);
