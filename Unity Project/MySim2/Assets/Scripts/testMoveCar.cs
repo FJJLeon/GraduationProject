@@ -4,23 +4,23 @@ using UnityEngine;
 
 public class testMoveCar : MonoBehaviour
 {
-    private Rigidbody rigidCar;
+    private Rigidbody carRigid;
     // Start is called before the first frame update
     void Start()
     {
-        rigidCar = this.GetComponent<Rigidbody>();
+        carRigid = this.GetComponent<Rigidbody>();
     }
 
     // Update is called once per frame
     void Update()
     {
-        move();
+        transformMove();
     }
 
-    void move()
+    void transformMove()
     {
-        // physic
-        //rigidCar.AddForce(new Vector3(-1, 0, 0));
+        // physic move
+        //carRigid.AddForce(new Vector3(-1, 0, 0));
         //GetComponent<Rigidbody>().AddForceAtPosition(new Vector3(0, 0, 1), transform.position + transform.forward, ForceMode.VelocityChange);
 
         // direct move
@@ -29,4 +29,6 @@ public class testMoveCar : MonoBehaviour
         this.gameObject.transform.Rotate(new Vector3(0, 1, 0) * Time.deltaTime * 10f);
         
     }
+
+    
 }
