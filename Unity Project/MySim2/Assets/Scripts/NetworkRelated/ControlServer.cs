@@ -53,6 +53,7 @@ public class ControlServer : MonoBehaviour
 
     MyPosture targetPosture;
     byte[] postureBytes;
+    Rigidbody targetRig;
 
     Queue<Command> recvCmdQueue = new Queue<Command>();
 
@@ -72,6 +73,7 @@ public class ControlServer : MonoBehaviour
         serverThread = new Thread(DataThread);
         serverThread.Start();
 
+        targetRig = Target.GetComponent<Rigidbody>();
         // targetPosture = TransformToPosture(Target.GetComponent<Transform>());
         // postureBytes = MarshalPosture(targetPosture);
         // Debug.Log("posture bytes size:" + postureBytes.Length+ "Data:" + BitConverter.ToString(postureBytes));
@@ -91,13 +93,14 @@ public class ControlServer : MonoBehaviour
         }
 
         moveInterval += Time.deltaTime;
-        if (moveInterval > 0.05)// move per 0.1s 
+        if (moveInterval > 0.25)// move per 0.05s 
         {
             moveInterval = 0;
             Target.transform.Translate(Vector3.forward * moveVertical * Time.deltaTime * moveSpeed);
             Target.transform.Rotate(Vector3.up * moveHorizonal * Time.deltaTime * rotateSpeed);
+            
         }
-        
+        // Debug.Log("velocity x: " + targetRig.velocity.x + " y: " + targetRig.velocity.y + " z: " + targetRig.velocity.z);
     }
 
 
@@ -181,6 +184,7 @@ public class ControlServer : MonoBehaviour
                         default:
                             break;
                     }
+                    Thread.Sleep(400);
                 }
 
                 myClient.Close();

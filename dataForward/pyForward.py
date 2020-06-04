@@ -4,7 +4,7 @@ import queue
 import sys
 from enum import Enum
 
-def recvall(sock, recv_size):
+def recvall(sock, recv_size): # no use
     recv_buffer = []
     while True:
         data = sock.recv(recv_size)
@@ -58,30 +58,32 @@ class ForwardSender(threading.Thread):
                     self.client_list.remove(to_sock)
 
     
-def forward():
+def forward(host, port):
     msg_queue = queue.Queue()
     client_list = []
 
     tcp_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_addr = ('127.0.0.1', 55555)
+    server_addr = (host, port)
     tcp_server.bind(server_addr)
-
+    print("forward server {0}:{1} start listen".format(host, port))
     try:
-        tcp_server.listen(8)
+        tcp_server.listen(2)
     except socket.error:
         print("fail to listen on port %s" % e)
         sys.exit(1)
 
     fs = ForwardSender(client_list, msg_queue)
-    fs.setDaemon(True)
+    # fs.setDaemon(True)
     fs.start()
     
-    while True:
+    for _ in range(2):
         client_sock, client_addr = tcp_server.accept()
-        print("地址{0}已连接".format(client_addr))
+        print("client {0} connect to forward server {1}:{2} ".format(client_addr, host, port))
         fr = ForwardReceiver(client_list, msg_queue, client_sock, client_addr)
-        fr.setDaemon(True)
+        # fr.setDaemon(True)
         fr.start()
+    
+    print("forward server {0}:{1} stop listen".format(host, port))
 
 
 Roles = Enum('Role', ('Guide', 'Matlab', 'Unity'))
@@ -111,8 +113,16 @@ def guideService(host, port):
 
 
 if __name__ == "__main__":
-    guideService('127.0.0.1', 56000)
-    #forward()
+    #guideService('127.0.0.1', 56000)
+
+    forwardsThread = [threading.Thread(target=forward, args=('127.0.0.1', 55555)),
+                      threading.Thread(target=forward, args=('127.0.0.1', 58002)),
+                      threading.Thread(target=forward, args=('127.0.0.1', 58003))]
+    for t in forwardsThread:
+        t.start()
+    #forward('127.0.0.1', 55555)
+    #forward('127.0.0.1', 58002)
+    #forward('127.0.0.1', 58003)
 
 
 

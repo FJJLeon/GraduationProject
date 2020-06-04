@@ -24,8 +24,7 @@ public class MonoPanorRender : MonoBehaviour
         }
     }
 
-    // Update is called once per frame
-    void Update()
+    void LateUpdate()
     {
         // render panoramic RT
         // stereo render 
