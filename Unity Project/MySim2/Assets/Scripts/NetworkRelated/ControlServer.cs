@@ -52,6 +52,7 @@ public class ControlServer : MonoBehaviour
     NetworkStream clientStream;
 
     MyPosture targetPosture;
+    Transform targetTransform;
     byte[] postureBytes;
     Rigidbody targetRig;
 
@@ -74,15 +75,17 @@ public class ControlServer : MonoBehaviour
         serverThread.Start();
 
         targetRig = Target.GetComponent<Rigidbody>();
-        // targetPosture = TransformToPosture(Target.GetComponent<Transform>());
-        // postureBytes = MarshalPosture(targetPosture);
+
+        targetTransform = Target.GetComponent<Transform>();
+        targetPosture = TransformToPosture(targetTransform);
+        postureBytes = MarshalPosture(targetPosture);
         // Debug.Log("posture bytes size:" + postureBytes.Length+ "Data:" + BitConverter.ToString(postureBytes));
     }
 
     // Update is called once per frame
     void Update()
     {
-        targetPosture = TransformToPosture(Target.GetComponent<Transform>());
+        targetPosture = TransformToPosture(targetTransform);
         postureBytes = MarshalPosture(targetPosture);
 
         if (!recvCmdQueue.isEmpty())

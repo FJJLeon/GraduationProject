@@ -974,7 +974,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 534669902}
-  m_LocalRotation: {x: -2.5638158e-11, y: 0.0000005534956, z: 0.000046319405, w: -1}
+  m_LocalRotation: {x: 2.5637631e-11, y: -0.00000055349653, z: -0.000046319405, w: 1}
   m_LocalPosition: {x: 30.430002, y: -5.268, z: 4.5770006}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
@@ -1584,8 +1584,8 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1060457530}
-  m_LocalRotation: {x: 0.00006550549, y: -0.7071066, z: 2.188926e-11, w: -0.707107}
-  m_LocalPosition: {x: -1.7229995, y: -0.00015961652, z: 1.7229987}
+  m_LocalRotation: {x: -0, y: -0, z: -1.419034e-17, w: -1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 1304670417}
@@ -1820,11 +1820,11 @@ MonoBehaviour:
   Enable: 1
   ServerHost: 127.0.0.1
   ImageType: 0
-  ServerPort: 55555
+  ServerPort: 58001
   Image: {fileID: 8400000, guid: 435833ae979ae8f42bcf5406aac63582, type: 2}
   ResolutionWidth: 640
   ResolutionHeight: 480
-  SampleTime: 2000
+  SampleTime: 1000
 --- !u!114 &1179142269
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1832,7 +1832,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1179142266}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 962e14935d446d74d991ebcde2cde5a2, type: 3}
   m_Name: 
@@ -1844,7 +1844,7 @@ MonoBehaviour:
   Image: {fileID: 8400000, guid: edc991433063bd94e91f9f4ecc8d8adc, type: 2}
   ResolutionWidth: 640
   ResolutionHeight: 480
-  SampleTime: 20
+  SampleTime: 1000
 --- !u!114 &1179142270
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1852,7 +1852,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1179142266}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 962e14935d446d74d991ebcde2cde5a2, type: 3}
   m_Name: 
@@ -2205,9 +2205,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e33f79530740c4245a5193ae61beaa7d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  GuideHost: 127.0.0.1
+  GuidePort: 56000
   car: {fileID: 187134414}
   dataTran: {fileID: 1179142266}
   canvas: {fileID: 498331045}
+  rgb: {fileID: 0}
+  depth: {fileID: 0}
+  panor: {fileID: 0}
 --- !u!4 &1445200657
 Transform:
   m_ObjectHideFlags: 0
