@@ -80,7 +80,7 @@ def forward(host, port):
     for _ in range(2):
         client_sock, client_addr = tcp_server.accept()
         print("client {0} connect to forward server {1}:{2} ".format(client_addr, host, port))
-        FR = ForwardReceiver(client_list, msg_queue, client_sock, client_addr)
+        FR = ForwardReceiver(client_list, msg_queue, client_sock, client_addr, buffer_size=2**18)
         # fr.setDaemon(True)
         FR.start()
     

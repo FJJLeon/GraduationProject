@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -9,12 +10,16 @@ public class snapthree : MonoBehaviour
     public RenderTexture depth;
     public RenderTexture panor;
 
+    public RenderTexture miniMap;
+
     // Start is called before the first frame update
     void Start()
     {
         Assert.IsNotNull(rgb);
         Assert.IsNotNull(depth);
         Assert.IsNotNull(panor);
+
+        Assert.IsNotNull(miniMap);
     }
 
     // Update is called once per frame
@@ -29,9 +34,19 @@ public class snapthree : MonoBehaviour
 
     private void Snap()
     {
-        snapOne(rgb, "./snapImages/rgb.png");
-        snapOne(depth, "./snapImages/depth.png");
-        snapOne(panor, "./snapImages/panor.png");
+        var year = DateTime.Now.Year;
+        var mouth = DateTime.Now.Month;
+        var day = DateTime.Now.Day;
+        var hour = DateTime.Now.Hour;
+        var minute = DateTime.Now.Minute;
+        var second = DateTime.Now.Second;
+        string now = year + "-" + mouth + "-" + day + "-" + hour + "-" + minute + "-" + second;
+
+        snapOne(rgb, "./snapImages/" + now + "-rgb.png");
+        snapOne(depth, "./snapImages/" + now + "-depth.png");
+        snapOne(panor, "./snapImages/" + now + "-panor.png");
+
+        snapOne(miniMap, "./snapImages/" + now + "-miniMap.png");
     }
 
     private void snapOne(RenderTexture rt, string path_file)

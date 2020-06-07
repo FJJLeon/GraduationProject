@@ -14,11 +14,11 @@ def guide_center(host, port):
     print(resolv_a)
     print(resolv_b)
 
-    if (resolv_a[-14:] != resolv_b[-14:]):
+    if (resolv_a[-10:] != resolv_b[-10:]):
         print("Unity and Simulink figure resolve mismatch, fail")
         return
     
-    input('按回车键开始仿真...')
+    input('参数检查成功，按回车键开始仿真...')
 
     s.sendall(b'START')
 

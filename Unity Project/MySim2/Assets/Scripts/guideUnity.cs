@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
+using Unity.UIWidgets.rendering;
 using UnityEngine;
 using UnityEngine.Assertions;
 
@@ -28,7 +29,9 @@ public class guideUnity : MonoBehaviour
     NetworkStream clientStream;
 
     Thread guideThread;
-
+    private int rt_width;
+    private int rt_height;
+    private const int channel = 3;
     private bool already_sim;
     private bool remote_start;
     // Start is called before the first frame update
@@ -51,6 +54,8 @@ public class guideUnity : MonoBehaviour
         {
             Assert.IsFalse(true);
         }
+        rt_width = rgb.width;
+        rt_height = rgb.height;
 
         remote_start = false;
 
@@ -80,7 +85,7 @@ public class guideUnity : MonoBehaviour
             Debug.Log("CHECK cmd wrong");
         }
 
-        string resolv = String.Format("_Unity:[w={0:D}, h={1:D}]", 640, 480);
+        string resolv = String.Format("_Unity:[{0:D},{1:D},{2:D}]", rt_width, rt_height, channel);
         string send_1 = resolv.PadLeft(30, ' ');
         sendbuffer = Encoding.Default.GetBytes(send_1);
         Debug.Log("send_1: " + send_1 + " byte length:" + sendbuffer.Length);
